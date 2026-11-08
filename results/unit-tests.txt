@@ -10,23 +10,23 @@ $ go test -count=1 -v ./...
 === RUN   TestEmptyValueMeansDefault
 --- PASS: TestEmptyValueMeansDefault (0.00s)
 === RUN   TestInvalidValues
-=== RUN   TestInvalidValues/порт_не_число
-=== RUN   TestInvalidValues/порт_вне_диапазона
-=== RUN   TestInvalidValues/нулевой_порт
 === RUN   TestInvalidValues/таймаут_без_единиц
 === RUN   TestInvalidValues/отрицательный
 === RUN   TestInvalidValues/нулевой_таймаут
+=== RUN   TestInvalidValues/порт_не_число
+=== RUN   TestInvalidValues/порт_вне_диапазона
+=== RUN   TestInvalidValues/нулевой_порт
 --- PASS: TestInvalidValues (0.00s)
-    --- PASS: TestInvalidValues/порт_не_число (0.00s)
-    --- PASS: TestInvalidValues/порт_вне_диапазона (0.00s)
-    --- PASS: TestInvalidValues/нулевой_порт (0.00s)
     --- PASS: TestInvalidValues/таймаут_без_единиц (0.00s)
     --- PASS: TestInvalidValues/отрицательный (0.00s)
     --- PASS: TestInvalidValues/нулевой_таймаут (0.00s)
+    --- PASS: TestInvalidValues/порт_не_число (0.00s)
+    --- PASS: TestInvalidValues/порт_вне_диапазона (0.00s)
+    --- PASS: TestInvalidValues/нулевой_порт (0.00s)
 === RUN   TestAllErrorsReported
 --- PASS: TestAllErrorsReported (0.00s)
 PASS
-ok  	github.com/PGPL47yeF/search-tags/internal/config	0.011s
+ok  	github.com/PGPL47yeF/search-tags/internal/config	0.010s
 === RUN   TestAPIEmptyQueryIsBadRequest
 === RUN   TestAPIEmptyQueryIsBadRequest//api/tags
 === RUN   TestAPIEmptyQueryIsBadRequest//api/tags?q=
@@ -83,6 +83,13 @@ ok  	github.com/PGPL47yeF/search-tags/internal/httpapi	0.257s
 === RUN   TestQuery/пустая_строка
 === RUN   TestQuery/только_пробелы
 === RUN   TestQuery/неразрывный_пробел_не_схлопывается
+=== RUN   TestQuery/İ_не_трогаем,_как_lowerUTF8
+=== RUN   TestQuery/знак_кельвина_не_трогаем
+=== RUN   TestQuery/латинская_K_переводится
+=== RUN   TestQuery/ẞ_не_трогаем
+=== RUN   TestQuery/обычные_греческие_буквы_переводим
+=== RUN   TestQuery/битые_байты_сохраняются_как_есть
+=== RUN   TestQuery/обрезанная_кириллица_сохраняется
 --- PASS: TestQuery (0.00s)
     --- PASS: TestQuery/уже_нормализован (0.00s)
     --- PASS: TestQuery/кириллица_в_верхнем_регистре (0.00s)
@@ -97,6 +104,13 @@ ok  	github.com/PGPL47yeF/search-tags/internal/httpapi	0.257s
     --- PASS: TestQuery/пустая_строка (0.00s)
     --- PASS: TestQuery/только_пробелы (0.00s)
     --- PASS: TestQuery/неразрывный_пробел_не_схлопывается (0.00s)
+    --- PASS: TestQuery/İ_не_трогаем,_как_lowerUTF8 (0.00s)
+    --- PASS: TestQuery/знак_кельвина_не_трогаем (0.00s)
+    --- PASS: TestQuery/латинская_K_переводится (0.00s)
+    --- PASS: TestQuery/ẞ_не_трогаем (0.00s)
+    --- PASS: TestQuery/обычные_греческие_буквы_переводим (0.00s)
+    --- PASS: TestQuery/битые_байты_сохраняются_как_есть (0.00s)
+    --- PASS: TestQuery/обрезанная_кириллица_сохраняется (0.00s)
 === RUN   TestSpellingVariantsShareKey
 --- PASS: TestSpellingVariantsShareKey (0.00s)
 === RUN   FuzzQuery
