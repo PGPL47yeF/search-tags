@@ -1,0 +1,15 @@
+# Логи в репозиторий не кладём, см. README
+data/*
+!data/README.md
+
+/tagsvc
+/tagsvc.exe
+*.test
+*.out
+coverage.*
+
+.env
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
