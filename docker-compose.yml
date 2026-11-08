@@ -1,0 +1,53 @@
+x-clickhouse-auth: &clickhouse-auth
+  CLICKHOUSE_DB: search
+  CLICKHOUSE_USER: tags
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-tags}
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8.14.39
+    environment:
+      <<: *clickhouse-auth
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      # file('logs.parquet') в 002_load.sql читает отсюда
+      - ./data:/var/lib/clickhouse/user_files
+      - ./db:/db:ro
+    ports:
+      # только для локальной отладки и интеграционных тестов
+      - "127.0.0.1:${CLICKHOUSE_PORT:-9000}:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    restart: unless-stopped
+
+  loader:
+    image: clickhouse/clickhouse-server:24.8.14.39
+    entrypoint: ["bash", "/db/load.sh"]
+    environment:
+      <<: *clickhouse-auth
+      CLICKHOUSE_HOST: clickhouse
+    volumes:
+      - ./db:/db:ro
+    depends_on:
+      - clickhouse
+    restart: "no"
+
+  app:
+    build: .
+    environment:
+      <<: *clickhouse-auth
+      CLICKHOUSE_ADDR: clickhouse:9000
+      HTTP_PORT: "8080"
+      REQUEST_TIMEOUT: 2s
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    depends_on:
+      loader:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  clickhouse-data:
