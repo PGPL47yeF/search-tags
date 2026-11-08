@@ -1,5 +1,5 @@
--- Пересборка query_tags. Собираем в query_tags_next и атомарно подменяем,
--- чтобы API не видел пустую или наполовину заполненную таблицу.
+-- Сборка тегов в query_tags_next. Живая query_tags не трогается: подмена делается
+-- в 005_publish.sql и только после того, как 004_checks.sql проверил новую таблицу.
 DROP TABLE IF EXISTS query_tags_next;
 CREATE TABLE query_tags_next AS query_tags;
 
@@ -50,6 +50,3 @@ SELECT
     -- rank считается уже по 10 оставшимся строкам, поэтому в UInt8 помещается всегда.
     toUInt8(row_number() OVER (PARTITION BY query ORDER BY users DESC, tag))
 FROM top10;
-
-EXCHANGE TABLES query_tags AND query_tags_next;
-DROP TABLE query_tags_next;

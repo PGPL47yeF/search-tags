@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
+
 	"github.com/PGPL47yeF/search-tags/internal/normalize"
 	"github.com/PGPL47yeF/search-tags/internal/tags"
 )
@@ -45,14 +47,25 @@ func repoRoot() string {
 	return filepath.Join(filepath.Dir(file), "..", "..")
 }
 
-// runSQLFile выполняет файл из db/ по одному оператору. Комментарии -- только целыми строками,
-// операторы заканчиваются ';' в конце строки — этого соглашения держатся все файлы в db/.
-func runSQLFile(t *testing.T, db *sql.DB, name string) {
-	t.Helper()
+// execSQLFile выполняет файл из db/ по одному оператору на одном соединении
+// (временные таблицы живут в сессии). params — значения для {name:Type} в тексте.
+// Комментарии -- только целыми строками, операторы заканчиваются ';' в конце строки:
+// этого соглашения держатся все файлы в db/.
+func execSQLFile(db *sql.DB, name string, params map[string]string) error {
 	raw, err := os.ReadFile(filepath.Join(repoRoot(), "db", name))
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
+	ctx := context.Background()
+	if len(params) > 0 {
+		ctx = clickhouse.Context(ctx, clickhouse.WithParameters(params))
+	}
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
 	var stmt strings.Builder
 	for _, line := range strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "--") {
@@ -61,14 +74,45 @@ func runSQLFile(t *testing.T, db *sql.DB, name string) {
 		stmt.WriteString(line)
 		stmt.WriteByte('\n')
 		if strings.HasSuffix(strings.TrimSpace(line), ";") {
-			if _, err := db.Exec(stmt.String()); err != nil {
-				t.Fatalf("%s: %v\n%s", name, err, stmt.String())
+			if _, err := conn.ExecContext(ctx, stmt.String()); err != nil {
+				return fmt.Errorf("%s: %w\n%s", name, err, stmt.String())
 			}
 			stmt.Reset()
 		}
 	}
 	if strings.TrimSpace(stmt.String()) != "" {
-		t.Fatalf("%s: statement without trailing ';': %s", name, stmt.String())
+		return fmt.Errorf("%s: statement without trailing ';': %s", name, stmt.String())
+	}
+	return nil
+}
+
+func runSQLFile(t *testing.T, db *sql.DB, name string) {
+	t.Helper()
+	if err := execSQLFile(db, name, nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// buildTags повторяет шаги загрузчика после загрузки логов: сборка, проверки, публикация.
+func buildTags(t *testing.T, db *sql.DB) {
+	t.Helper()
+	runSQLFile(t, db, "003_tags.sql")
+	if err := execSQLFile(db, "004_checks.sql", map[string]string{"tags": "query_tags_next"}); err != nil {
+		t.Fatalf("checks failed on a correct build: %v", err)
+	}
+	runSQLFile(t, db, "005_publish.sql")
+}
+
+// requireClickHouse пропускает тест, только если адрес не задан явно: локально без базы
+// можно гонять go test -tags integration. Если CLICKHOUSE_ADDR задан (CI, README),
+// любая ошибка подключения, включая неверный пароль, роняет тест, а не превращается в «ok».
+func requireClickHouse(t *testing.T, db *sql.DB) {
+	t.Helper()
+	if err := db.Ping(); err != nil {
+		if os.Getenv("CLICKHOUSE_ADDR") == "" {
+			t.Skipf("CLICKHOUSE_ADDR is not set and ClickHouse at localhost:9000 is not usable: %v", err)
+		}
+		t.Fatalf("ClickHouse at %s is not usable: %v", os.Getenv("CLICKHOUSE_ADDR"), err)
 	}
 }
 
@@ -77,9 +121,7 @@ func newDatabase(t *testing.T) *sql.DB {
 	t.Helper()
 	admin := tags.Connect(connConfig("default"))
 	t.Cleanup(func() { admin.Close() })
-	if err := admin.Ping(); err != nil {
-		t.Skipf("ClickHouse is not reachable at %s: %v", env("CLICKHOUSE_ADDR", "localhost:9000"), err)
-	}
+	requireClickHouse(t, admin)
 
 	name := fmt.Sprintf("tags_it_%d", time.Now().UnixNano())
 	if _, err := admin.Exec("CREATE DATABASE " + name); err != nil {
@@ -237,8 +279,18 @@ func TestTagsPipeline(t *testing.T) {
 	// Кавычки и обратный слэш доходят до базы как есть.
 	f.users(5, `книги o'reilly \ go`, `go "в действии"`)
 
+	// Два запроса в одну и ту же миллисекунду: порядок задаёт текст запроса, результат детерминирован.
+	for i := 0; i < 5; i++ {
+		f.session([]time.Duration{0, time.Minute}, "тот же миг б", "тот же миг а", "после мига")
+	}
+
+	// Полный дубль строки даёт пару «запрос -> он же», её отбрасываем; следующий запрос считается.
+	for i := 0; i < 5; i++ {
+		f.session([]time.Duration{0, time.Minute}, "дубль", "дубль", "после дубля")
+	}
+
 	insert(t, db, f.events)
-	runSQLFile(t, db, "003_tags.sql")
+	buildTags(t, db)
 	store := tags.NewStore(db)
 
 	expect := func(raw string, want ...string) {
@@ -266,6 +318,9 @@ func TestTagsPipeline(t *testing.T) {
 	expect("позже")
 	expect(`Книги O'Reilly \ GO`, `go "в действии"`)
 	expect("не было такого запроса")
+	expect("тот же миг а", "тот же миг б")
+	expect("тот же миг б", "после мига")
+	expect("дубль", "после дубля")
 
 	top := lookup(t, store, "топ")
 	wantTop := []string{"топ лидер", "топ 01", "топ 02", "топ 03", "топ 04", "топ 05", "топ 06", "топ 07", "топ 08", "топ 09"}
@@ -280,20 +335,43 @@ func TestTagsPipeline(t *testing.T) {
 	if len(many) != 10 || many[0].Tag != "много 001" || many[9].Tag != "много 010" {
 		t.Errorf("300 candidates: got %q", tagNames(many))
 	}
+}
 
-	// Те же инварианты, что в 004_checks.sql, на фикстуре.
-	var violations uint64
-	err := db.QueryRow(`
-		SELECT
-			(SELECT countIf(query = tag OR users < 5) FROM query_tags)
-		  + (SELECT count() FROM (SELECT query FROM query_tags GROUP BY query HAVING count() > 10))
-		  + (SELECT count() FROM (SELECT query, arraySort(groupArray(rank)) AS r FROM query_tags GROUP BY query HAVING r != range(1, length(r) + 1)))
-	`).Scan(&violations)
-	if err != nil {
-		t.Fatal(err)
+// 004_checks.sql должен ловить каждое нарушение, иначе он не защищает публикацию.
+func TestChecksRejectBrokenBuild(t *testing.T) {
+	db := newDatabase(t)
+	var f fixture
+	f.users(6, "платье", "красное платье")
+	f.users(5, "платье", "летнее платье")
+	insert(t, db, f.events)
+
+	breakages := map[string]string{
+		"тег совпадает с запросом": "INSERT INTO query_tags_next VALUES ('куртка', 'куртка', 9, 1)",
+		"меньше 5 пользователей":   "INSERT INTO query_tags_next VALUES ('куртка', 'пуховик', 4, 1)",
+		"больше 10 тегов":          "INSERT INTO query_tags_next SELECT 'куртка', concat('тег ', toString(number)), 5, number + 1 FROM numbers(11)",
+		"не нормализовано":         "INSERT INTO query_tags_next VALUES ('Куртка ', 'пуховик', 9, 1)",
+		"rank с пропуском":         "INSERT INTO query_tags_next VALUES ('куртка', 'пуховик', 9, 2)",
+		"users растёт с rank":      "INSERT INTO query_tags_next VALUES ('куртка', 'пуховик', 5, 1), ('куртка', 'парка', 9, 2)",
+		"пара бота":                "INSERT INTO query_tags_next VALUES ('платье', 'странный запрос', 7, 3)",
+		"пустая сборка":            "TRUNCATE TABLE query_tags_next",
 	}
-	if violations != 0 {
-		t.Errorf("invariants violated %d times", violations)
+	for name, breakSQL := range breakages {
+		t.Run(name, func(t *testing.T) {
+			runSQLFile(t, db, "003_tags.sql")
+			if _, err := db.Exec(breakSQL); err != nil {
+				t.Fatal(err)
+			}
+			err := execSQLFile(db, "004_checks.sql", map[string]string{"tags": "query_tags_next"})
+			if err == nil || !strings.Contains(err.Error(), "непройденные проверки") {
+				t.Fatalf("checks did not reject the broken build: %v", err)
+			}
+		})
+	}
+
+	// Сборка без поломок проходит те же проверки.
+	runSQLFile(t, db, "003_tags.sql")
+	if err := execSQLFile(db, "004_checks.sql", map[string]string{"tags": "query_tags_next"}); err != nil {
+		t.Fatalf("checks rejected a correct build: %v", err)
 	}
 }
 
@@ -302,10 +380,11 @@ func TestRebuildIsRepeatable(t *testing.T) {
 	db := newDatabase(t)
 	var f fixture
 	f.users(6, "раз", "два")
+	f.users(5, "платье", "красное платье") // без этого не пройдёт проверка «Платье / платье »
 	insert(t, db, f.events)
 
-	runSQLFile(t, db, "003_tags.sql")
-	runSQLFile(t, db, "003_tags.sql")
+	buildTags(t, db)
+	buildTags(t, db)
 
 	store := tags.NewStore(db)
 	got := lookup(t, store, "раз")
@@ -343,10 +422,18 @@ func TestNormalizationMatchesSQL(t *testing.T) {
 func TestNormalizationMatchesSQLOnRealLogs(t *testing.T) {
 	db := tags.Connect(connConfig(env("CLICKHOUSE_DB", "search")))
 	defer db.Close()
+	requireClickHouse(t, db)
 
+	var loaded uint64
+	if err := db.QueryRow("SELECT count() FROM system.tables WHERE database = currentDatabase() AND name = 'search_log'").Scan(&loaded); err != nil {
+		t.Fatal(err)
+	}
+	if loaded == 0 {
+		t.Skip("real logs are not loaded (no search_log in this database)")
+	}
 	rows, err := db.Query("SELECT DISTINCT search_query, query_norm FROM search_log")
 	if err != nil {
-		t.Skipf("real logs are not loaded: %v", err)
+		t.Fatal(err)
 	}
 	defer rows.Close()
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Одноразовый загрузчик: схема -> логи -> теги -> проверки.
+# Одноразовый загрузчик: схема -> логи -> сборка тегов -> проверки -> публикация.
 # Запускается сервисом loader из docker-compose.yml; повторный запуск безопасен.
 set -euo pipefail
 
@@ -40,8 +40,13 @@ ch --multiquery --queries-file /db/002_load.sql
 echo "build tags"
 ch --multiquery --queries-file /db/003_tags.sql
 
+# Проверяем новую сборку до публикации: если что-то не так, set -e остановит скрипт,
+# а сервис продолжит отдавать прежние теги.
 echo "checks"
-ch --multiquery --queries-file /db/004_checks.sql
+ch --multiquery --param_tags=query_tags_next --queries-file /db/004_checks.sql
+
+echo "publish"
+ch --multiquery --queries-file /db/005_publish.sql
 
 ch --query "SELECT
     (SELECT count() FROM search_log) AS log_rows,
