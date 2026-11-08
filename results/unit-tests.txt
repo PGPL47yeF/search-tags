@@ -1,0 +1,120 @@
+$ go version
+go version go1.27.3 windows/amd64
+
+$ go test -count=1 -v ./...
+?   	github.com/PGPL47yeF/search-tags/cmd/tagsvc	[no test files]
+=== RUN   TestDefaults
+--- PASS: TestDefaults (0.00s)
+=== RUN   TestOverrides
+--- PASS: TestOverrides (0.00s)
+=== RUN   TestEmptyValueMeansDefault
+--- PASS: TestEmptyValueMeansDefault (0.00s)
+=== RUN   TestInvalidValues
+=== RUN   TestInvalidValues/порт_не_число
+=== RUN   TestInvalidValues/порт_вне_диапазона
+=== RUN   TestInvalidValues/нулевой_порт
+=== RUN   TestInvalidValues/таймаут_без_единиц
+=== RUN   TestInvalidValues/отрицательный
+=== RUN   TestInvalidValues/нулевой_таймаут
+--- PASS: TestInvalidValues (0.00s)
+    --- PASS: TestInvalidValues/порт_не_число (0.00s)
+    --- PASS: TestInvalidValues/порт_вне_диапазона (0.00s)
+    --- PASS: TestInvalidValues/нулевой_порт (0.00s)
+    --- PASS: TestInvalidValues/таймаут_без_единиц (0.00s)
+    --- PASS: TestInvalidValues/отрицательный (0.00s)
+    --- PASS: TestInvalidValues/нулевой_таймаут (0.00s)
+=== RUN   TestAllErrorsReported
+--- PASS: TestAllErrorsReported (0.00s)
+PASS
+ok  	github.com/PGPL47yeF/search-tags/internal/config	0.011s
+=== RUN   TestAPIEmptyQueryIsBadRequest
+=== RUN   TestAPIEmptyQueryIsBadRequest//api/tags
+=== RUN   TestAPIEmptyQueryIsBadRequest//api/tags?q=
+=== RUN   TestAPIEmptyQueryIsBadRequest//api/tags?q=+++
+=== RUN   TestAPIEmptyQueryIsBadRequest//api/tags?q=%09%0A
+--- PASS: TestAPIEmptyQueryIsBadRequest (0.02s)
+    --- PASS: TestAPIEmptyQueryIsBadRequest//api/tags (0.02s)
+    --- PASS: TestAPIEmptyQueryIsBadRequest//api/tags?q= (0.00s)
+    --- PASS: TestAPIEmptyQueryIsBadRequest//api/tags?q=+++ (0.00s)
+    --- PASS: TestAPIEmptyQueryIsBadRequest//api/tags?q=%09%0A (0.00s)
+=== RUN   TestAPIReturnsTagsInRankOrder
+--- PASS: TestAPIReturnsTagsInRankOrder (0.00s)
+=== RUN   TestAPINormalizesQueryBeforeLookup
+--- PASS: TestAPINormalizesQueryBeforeLookup (0.00s)
+=== RUN   TestAPINoTagsIsEmptyList
+--- PASS: TestAPINoTagsIsEmptyList (0.00s)
+=== RUN   TestAPIStorageErrorIsHidden
+--- PASS: TestAPIStorageErrorIsHidden (0.00s)
+=== RUN   TestAPITimeoutIsGatewayTimeout
+--- PASS: TestAPITimeoutIsGatewayTimeout (0.20s)
+=== RUN   TestClientDisconnectIsNotAnError
+--- PASS: TestClientDisconnectIsNotAnError (0.02s)
+=== RUN   TestAPIRejectsOtherMethods
+--- PASS: TestAPIRejectsOtherMethods (0.00s)
+=== RUN   TestHealthz
+--- PASS: TestHealthz (0.00s)
+=== RUN   TestPageWithoutQueryShowsForm
+--- PASS: TestPageWithoutQueryShowsForm (0.00s)
+=== RUN   TestPageShowsTagsAsLinksThatFillTheField
+--- PASS: TestPageShowsTagsAsLinksThatFillTheField (0.00s)
+=== RUN   TestPageNoTagsMessage
+--- PASS: TestPageNoTagsMessage (0.00s)
+=== RUN   TestPageEscapesUserInputAndTags
+--- PASS: TestPageEscapesUserInputAndTags (0.00s)
+=== RUN   TestPageStorageFailure
+--- PASS: TestPageStorageFailure (0.00s)
+=== RUN   TestUnknownPathIsNotFound
+--- PASS: TestUnknownPathIsNotFound (0.00s)
+=== RUN   TestAccessLogHasNoSearchText
+--- PASS: TestAccessLogHasNoSearchText (0.00s)
+PASS
+ok  	github.com/PGPL47yeF/search-tags/internal/httpapi	0.257s
+=== RUN   TestQuery
+=== RUN   TestQuery/уже_нормализован
+=== RUN   TestQuery/кириллица_в_верхнем_регистре
+=== RUN   TestQuery/смешанный_регистр
+=== RUN   TestQuery/пробел_в_конце
+=== RUN   TestQuery/пробелы_по_краям
+=== RUN   TestQuery/несколько_пробелов_внутри
+=== RUN   TestQuery/табы_и_переводы_строк
+=== RUN   TestQuery/всё_сразу
+=== RUN   TestQuery/буква_ё_сохраняется
+=== RUN   TestQuery/цифры_и_знаки_не_трогаем
+=== RUN   TestQuery/пустая_строка
+=== RUN   TestQuery/только_пробелы
+=== RUN   TestQuery/неразрывный_пробел_не_схлопывается
+--- PASS: TestQuery (0.00s)
+    --- PASS: TestQuery/уже_нормализован (0.00s)
+    --- PASS: TestQuery/кириллица_в_верхнем_регистре (0.00s)
+    --- PASS: TestQuery/смешанный_регистр (0.00s)
+    --- PASS: TestQuery/пробел_в_конце (0.00s)
+    --- PASS: TestQuery/пробелы_по_краям (0.00s)
+    --- PASS: TestQuery/несколько_пробелов_внутри (0.00s)
+    --- PASS: TestQuery/табы_и_переводы_строк (0.00s)
+    --- PASS: TestQuery/всё_сразу (0.00s)
+    --- PASS: TestQuery/буква_ё_сохраняется (0.00s)
+    --- PASS: TestQuery/цифры_и_знаки_не_трогаем (0.00s)
+    --- PASS: TestQuery/пустая_строка (0.00s)
+    --- PASS: TestQuery/только_пробелы (0.00s)
+    --- PASS: TestQuery/неразрывный_пробел_не_схлопывается (0.00s)
+=== RUN   TestSpellingVariantsShareKey
+--- PASS: TestSpellingVariantsShareKey (0.00s)
+=== RUN   FuzzQuery
+=== RUN   FuzzQuery/seed#0
+=== RUN   FuzzQuery/seed#1
+=== RUN   FuzzQuery/seed#2
+=== RUN   FuzzQuery/seed#3
+=== RUN   FuzzQuery/seed#4
+=== RUN   FuzzQuery/seed#5
+=== RUN   FuzzQuery/seed#6
+--- PASS: FuzzQuery (0.00s)
+    --- PASS: FuzzQuery/seed#0 (0.00s)
+    --- PASS: FuzzQuery/seed#1 (0.00s)
+    --- PASS: FuzzQuery/seed#2 (0.00s)
+    --- PASS: FuzzQuery/seed#3 (0.00s)
+    --- PASS: FuzzQuery/seed#4 (0.00s)
+    --- PASS: FuzzQuery/seed#5 (0.00s)
+    --- PASS: FuzzQuery/seed#6 (0.00s)
+PASS
+ok  	github.com/PGPL47yeF/search-tags/internal/normalize	0.010s
+?   	github.com/PGPL47yeF/search-tags/internal/tags	[no test files]

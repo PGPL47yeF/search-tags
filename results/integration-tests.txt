@@ -1,0 +1,12 @@
+$ go test -tags integration -count=1 -v ./test/integration
+=== RUN   TestTagsPipeline
+--- PASS: TestTagsPipeline (0.22s)
+=== RUN   TestRebuildIsRepeatable
+--- PASS: TestRebuildIsRepeatable (0.09s)
+=== RUN   TestNormalizationMatchesSQL
+--- PASS: TestNormalizationMatchesSQL (0.08s)
+=== RUN   TestNormalizationMatchesSQLOnRealLogs
+    pipeline_test.go:370: checked 11018 distinct spellings
+--- PASS: TestNormalizationMatchesSQLOnRealLogs (0.02s)
+PASS
+ok  	github.com/PGPL47yeF/search-tags/test/integration	0.433s

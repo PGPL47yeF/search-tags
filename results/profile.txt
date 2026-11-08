@@ -1,0 +1,44 @@
+Row 1:
+──────
+rows:        992318
+users:       50078
+first_event: 2026-10-12 00:00:03.000
+last_event:  2026-10-18 23:59:59.000
+days:        7
+Row 1:
+──────
+empty_raw:               0
+empty_after_norm:        0
+with_upper_case:         51171
+with_edge_spaces:        29632
+with_space_runs:         14427
+with_control_whitespace: 0
+with_nbsp:               0
+invalid_utf8:            0
+changed_by_norm:         89365
+distinct_raw:            11018
+distinct_normalized:     2632
+   ┌─query_norm─┬─spellings─┬──rows─┐
+1. │ платье     │         6 │ 44107 │
+2. │ кроссовки  │         6 │ 34489 │
+3. │ для дома   │         7 │ 28000 │
+4. │ куртка     │         6 │ 24168 │
+5. │ диван      │         6 │ 21113 │
+   └────────────┴───────────┴───────┘
+Row 1:
+──────
+exact_duplicates:    0
+same_user_same_time: 0
+   ┌──user_id─┬─events─┬─distinct_queries─┬─events_per_query─┐
+1. │ 90000001 │   1000 │                2 │              500 │
+2. │ 90000002 │    600 │                2 │              300 │
+3. │ 80100002 │     20 │                2 │               10 │
+4. │ 80100003 │     20 │                2 │               10 │
+5. │ 80100001 │     20 │                2 │               10 │
+   └──────────┴────────┴──────────────────┴──────────────────┘
+Row 1:
+──────
+within_30_min:        427030
+over_30_min:          515210
+exactly_30_min:       22
+over_by_less_than_1s: 0
