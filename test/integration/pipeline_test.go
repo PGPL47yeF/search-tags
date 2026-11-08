@@ -18,6 +18,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 
@@ -400,10 +401,13 @@ func TestRebuildIsRepeatable(t *testing.T) {
 	}
 }
 
-// Go и SQL нормализуют независимо; на кириллице, латинице и ASCII-пробелах результат обязан совпадать.
+// Go и SQL нормализуют независимо, результат обязан совпадать. Здесь — целые строки, включая
+// битый UTF-8 и символы, на которых strings.ToLower и lowerUTF8 расходятся; заодно проверяем,
+// что такие значения доходят до ClickHouse через параметр без искажений.
 func TestNormalizationMatchesSQL(t *testing.T) {
 	db := newDatabase(t)
 	inputs := []string{
+		"İstanbul", "100 K", "STRAẞE", "Ⱥ", "ǅ", "Ꞵ", "A\xff\xfeB", "Я\xd0", "\xc0\xaf", "a?b", "{q:String}",
 		"Платье", "платье ", "  ПЛАТЬЕ  красное ", "Кроссовки\tNIKE\nАкция", "ЁЛКА", "ёжик",
 		"iPhone 15 PRO", "o'reilly \\ go", `"кавычки"`, "\r\n\t\f", "", "a  b   c", "Ünïcödé Ÿ", "платье миди",
 	}
@@ -416,6 +420,70 @@ func TestNormalizationMatchesSQL(t *testing.T) {
 			t.Errorf("%q: Go %q, SQL %q", in, goResult, sqlResult)
 		}
 	}
+}
+
+// Каждая кодовая точка Unicode (кроме суррогатов) нормализуется в Go так же, как в SQL.
+// ClickHouse сам перебирает все 1 112 064 символа и возвращает только те, которые normalize_search
+// меняет; для остальных Go обязан вернуть символ без изменений.
+func TestNormalizationMatchesSQLForAllRunes(t *testing.T) {
+	db := newDatabase(t)
+
+	rows, err := db.Query(`
+		SELECT toUInt32(cp), normalize_search(s) AS n
+		FROM
+		(
+			SELECT number AS cp,
+				multiIf(
+					cp < 0x80,    char(cp),
+					cp < 0x800,   char(0xC0 + intDiv(cp, 64), 0x80 + cp % 64),
+					cp < 0x10000, char(0xE0 + intDiv(cp, 4096), 0x80 + intDiv(cp, 64) % 64, 0x80 + cp % 64),
+					              char(0xF0 + intDiv(cp, 262144), 0x80 + intDiv(cp, 4096) % 64, 0x80 + intDiv(cp, 64) % 64, 0x80 + cp % 64)
+				) AS s
+			FROM numbers(0x110000)
+			WHERE cp < 0xD800 OR cp > 0xDFFF
+		)
+		WHERE n != s`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	changedBySQL := make(map[rune]string)
+	for rows.Next() {
+		var cp uint32
+		var n string
+		if err := rows.Scan(&cp, &n); err != nil {
+			t.Fatal(err)
+		}
+		changedBySQL[rune(cp)] = n
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(changedBySQL) < 500 { // защита от пустого ответа; на 24.8 их 893
+		t.Fatalf("suspiciously few runes changed by SQL: %d", len(changedBySQL))
+	}
+
+	mismatches := 0
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		if r >= 0xD800 && r <= 0xDFFF {
+			continue
+		}
+		want, changed := changedBySQL[r]
+		if !changed {
+			want = string(r)
+		}
+		if got := normalize.Query(string(r)); got != want {
+			mismatches++
+			if mismatches <= 20 {
+				t.Errorf("U+%04X %q: Go %q, SQL %q", r, string(r), got, want)
+			}
+		}
+	}
+	if mismatches > 0 {
+		t.Errorf("%d code points normalize differently in Go and SQL", mismatches)
+	}
+	t.Logf("checked %d code points, %d of them are changed by normalization", unicode.MaxRune+1-0x800, len(changedBySQL))
 }
 
 // То же на всех настоящих написаниях из логов, если они загружены в базу search.

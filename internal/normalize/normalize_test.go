@@ -27,6 +27,14 @@ func TestQuery(t *testing.T) {
 		{"только пробелы", " \t\n ", ""},
 		// Как в SQL: \s в RE2 не включает неразрывный пробел, поэтому он остаётся частью запроса.
 		{"неразрывный пробел не схлопывается", "платье миди", "платье миди"},
+		// Ниже — места, где strings.ToLower и lowerUTF8 из ClickHouse расходятся. Ведём себя как ClickHouse.
+		{"İ не трогаем, как lowerUTF8", "İSTANBUL", "İstanbul"},
+		{"знак кельвина не трогаем", "100 K", "100 K"},
+		{"латинская K переводится", "100 K", "100 k"},
+		{"ẞ не трогаем", "STRAẞE", "straẞe"},
+		{"обычные греческие буквы переводим", "ΣΟΦΙΑ", "σοφια"},
+		{"битые байты сохраняются как есть", "A\xff\xfeB", "a\xff\xfeb"},
+		{"обрезанная кириллица сохраняется", "Я\xd0", "я\xd0"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -67,6 +75,10 @@ func FuzzQuery(f *testing.F) {
 		}
 		if utf8.ValidString(in) && !utf8.ValidString(out) {
 			t.Fatalf("valid UTF-8 became invalid: %q -> %q", in, out)
+		}
+		// Регистр и пробелы — единственное, что меняется: U+FFFD из ниоткуда не появляется.
+		if strings.Count(out, "�") > strings.Count(in, "�") {
+			t.Fatalf("replacement characters introduced: %q -> %q", in, out)
 		}
 	})
 }
