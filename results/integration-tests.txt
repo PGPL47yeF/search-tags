@@ -1,6 +1,6 @@
 $ CLICKHOUSE_ADDR=localhost:19000 CLICKHOUSE_USER=tags CLICKHOUSE_PASSWORD=tags go test -tags integration -count=1 -v ./test/integration   # CLICKHOUSE_PORT=19000
 === RUN   TestTagsPipeline
---- PASS: TestTagsPipeline (0.24s)
+--- PASS: TestTagsPipeline (0.25s)
 === RUN   TestChecksRejectBrokenBuild
 === RUN   TestChecksRejectBrokenBuild/тег_совпадает_с_запросом
 === RUN   TestChecksRejectBrokenBuild/меньше_5_пользователей
@@ -10,7 +10,7 @@ $ CLICKHOUSE_ADDR=localhost:19000 CLICKHOUSE_USER=tags CLICKHOUSE_PASSWORD=tags 
 === RUN   TestChecksRejectBrokenBuild/users_растёт_с_rank
 === RUN   TestChecksRejectBrokenBuild/пара_бота
 === RUN   TestChecksRejectBrokenBuild/пустая_сборка
---- PASS: TestChecksRejectBrokenBuild (0.47s)
+--- PASS: TestChecksRejectBrokenBuild (0.45s)
     --- PASS: TestChecksRejectBrokenBuild/тег_совпадает_с_запросом (0.05s)
     --- PASS: TestChecksRejectBrokenBuild/меньше_5_пользователей (0.05s)
     --- PASS: TestChecksRejectBrokenBuild/больше_10_тегов (0.05s)
@@ -20,14 +20,14 @@ $ CLICKHOUSE_ADDR=localhost:19000 CLICKHOUSE_USER=tags CLICKHOUSE_PASSWORD=tags 
     --- PASS: TestChecksRejectBrokenBuild/пара_бота (0.05s)
     --- PASS: TestChecksRejectBrokenBuild/пустая_сборка (0.04s)
 === RUN   TestRebuildIsRepeatable
---- PASS: TestRebuildIsRepeatable (0.14s)
+--- PASS: TestRebuildIsRepeatable (0.13s)
 === RUN   TestNormalizationMatchesSQL
 --- PASS: TestNormalizationMatchesSQL (0.09s)
 === RUN   TestNormalizationMatchesSQLForAllRunes
     pipeline_test.go:486: checked 1112064 code points, 893 of them are changed by normalization
---- PASS: TestNormalizationMatchesSQLForAllRunes (0.27s)
+--- PASS: TestNormalizationMatchesSQLForAllRunes (0.24s)
 === RUN   TestNormalizationMatchesSQLOnRealLogs
-    pipeline_test.go:525: checked 11018 distinct spellings
+    pipeline_test.go:530: checked 11018 distinct spellings
 --- PASS: TestNormalizationMatchesSQLOnRealLogs (0.03s)
 PASS
-ok  	github.com/PGPL47yeF/search-tags/test/integration	1.257s
+ok  	github.com/PGPL47yeF/search-tags/test/integration	1.195s

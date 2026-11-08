@@ -488,17 +488,22 @@ func TestNormalizationMatchesSQLForAllRunes(t *testing.T) {
 
 // То же на всех настоящих написаниях из логов, если они загружены в базу search.
 func TestNormalizationMatchesSQLOnRealLogs(t *testing.T) {
-	db := tags.Connect(connConfig(env("CLICKHOUSE_DB", "search")))
-	defer db.Close()
-	requireClickHouse(t, db)
+	// Подключаемся к default: базы с логами может не быть (в CI её нет), это повод пропустить тест,
+	// а не ошибка подключения.
+	admin := tags.Connect(connConfig("default"))
+	defer admin.Close()
+	requireClickHouse(t, admin)
 
+	database := env("CLICKHOUSE_DB", "search")
 	var loaded uint64
-	if err := db.QueryRow("SELECT count() FROM system.tables WHERE database = currentDatabase() AND name = 'search_log'").Scan(&loaded); err != nil {
+	if err := admin.QueryRow("SELECT count() FROM system.tables WHERE database = ? AND name = 'search_log'", database).Scan(&loaded); err != nil {
 		t.Fatal(err)
 	}
 	if loaded == 0 {
-		t.Skip("real logs are not loaded (no search_log in this database)")
+		t.Skipf("real logs are not loaded (no %s.search_log)", database)
 	}
+	db := tags.Connect(connConfig(database))
+	defer db.Close()
 	rows, err := db.Query("SELECT DISTINCT search_query, query_norm FROM search_log")
 	if err != nil {
 		t.Fatal(err)
